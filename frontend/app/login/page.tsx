@@ -9,7 +9,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, AlertCircle, Mail, Lock, ArrowRight } from "lucide-react"
-import { login } from "@/lib/auth"
+// import { login } from "@/lib/auth"
 
 export default function LoginPage() {
   const router = useRouter()

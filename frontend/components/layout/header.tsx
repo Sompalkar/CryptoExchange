@@ -30,10 +30,12 @@ export default function Header() {
   useEffect(() => {
     const loadUser = async () => {
       try {
+        setLoading(true)
         const currentUser = await getCurrentUser()
         setUser(currentUser)
       } catch (error) {
         console.error("Failed to load user:", error)
+        setUser(null)
       } finally {
         setLoading(false)
       }
@@ -81,9 +83,13 @@ export default function Header() {
   ]
 
   const handleLogout = async () => {
-    await logout()
-    setUser(null)
-    window.location.href = "/"
+    try {
+      await logout()
+      setUser(null)
+      window.location.href = "/"
+    } catch (error) {
+      console.error("Logout error:", error)
+    }
   }
 
   return (

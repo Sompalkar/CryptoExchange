@@ -21,8 +21,8 @@ interface EnhancedTradeViewProps {
  * This component orchestrates the entire trading view with:
  * - Trading pair selection
  * - Real-time price updates
- * - Chart display (left side, 75% width)
- * - Order book and order form (right side, stacked vertically)
+ * - Chart display (left side)
+ * - Order book and order form (right side)
  * - Recent trades and order history tabs
  *
  * @param {string} pair - Trading pair in format "BTC/USDT"
@@ -127,7 +127,7 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
         </div>
       </motion.div>
 
-      {/* Main Trading Interface */}
+      {/* Main Trading Interface - Improved Layout */}
       <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-4 h-[calc(100vh-200px)]">
         {/* Left Side - Chart (Takes 3 columns on lg screens = 75%) */}
         <div className="lg:col-span-3 col-span-1">
@@ -142,23 +142,23 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
         </div>
 
         {/* Right Side - Order Book and Order Form (Takes 1 column on lg screens = 25%) */}
-        <div className=" flex h-full  flex-col  ">
-          {/* Order Book - Takes 50% of the right column height */}
+        <div className="lg:col-span-1 col-span-1 flex flex-col space-y-2 md:space-y-4 h-full">
+          {/* Order Book - Takes 45% of the right column height */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="h-1/2"
+            className="h-[45%]"
           >
             <EnhancedOrderBook pair={currentPair} />
           </motion.div>
 
-          {/* Order Form - Takes 50% of the right column height */}
+          {/* Order Form - Takes 55% of the right column height */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="h-1/2"
+            className="h-[55%]"
           >
             <EnhancedOrderForm pair={currentPair} currentPrice={currentPrice} />
           </motion.div>
@@ -166,7 +166,7 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
       </div>
 
       {/* Bottom Section - Recent Trades and Open Orders */}
-      {/* <motion.div
+      <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ delay: 0.4 }}
@@ -209,7 +209,7 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
             </Card>
           </TabsContent>
         </Tabs>
-      </motion.div> */}
+      </motion.div>
     </div>
   )
 }

@@ -9,7 +9,7 @@ import { motion } from "framer-motion"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Loader2, AlertCircle, Mail, Lock, User, ArrowRight, Check } from "lucide-react"
-import { register } from "@/lib/auth"
+// import { register } from "@/lib/auth"
 
 export default function RegisterPage() {
   const router = useRouter()

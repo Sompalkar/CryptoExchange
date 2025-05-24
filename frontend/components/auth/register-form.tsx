@@ -6,7 +6,7 @@ import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { useRecoilState } from "recoil"
 import { userState } from "@/lib/recoil/atoms"
-import { registerWithCredentials, loginWithAuth0 } from "@/lib/auth"
+import { registerWithCredentials } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -52,20 +52,7 @@ export default function RegisterForm() {
     }
   }
 
-  const handleAuth0Login = async () => {
-    setLoading(true)
-    setError(null)
-
-    try {
-      const user = await loginWithAuth0()
-      setUser(user)
-      router.push("/dashboard")
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Social login failed. Please try again.")
-    } finally {
-      setLoading(false)
-    }
-  }
+  // Remove the handleAuth0Login function or replace it with a proper implementation if needed
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -138,7 +125,7 @@ export default function RegisterForm() {
           </div>
         </div>
 
-        <Button variant="outline" type="button" className="w-full" onClick={handleAuth0Login} disabled={loading}>
+        <Button variant="outline" type="button" className="w-full" onClick={() => {}} disabled={loading}>
           <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
             <path
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"

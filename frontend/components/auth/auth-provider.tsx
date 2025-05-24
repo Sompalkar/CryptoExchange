@@ -14,10 +14,12 @@ export default function AuthProvider({ children }: { children: React.ReactNode }
   useEffect(() => {
     const initAuth = async () => {
       try {
+        setLoading(true)
         const currentUser = await getCurrentUser()
         setUser(currentUser)
       } catch (error) {
         console.error("Auth initialization error:", error)
+        setUser(null)
       } finally {
         setLoading(false)
       }
