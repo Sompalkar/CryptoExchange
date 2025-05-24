@@ -3,15 +3,21 @@
 import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Bell, Menu, X, User, LogOut, Settings, Wallet } from "lucide-react"
+import { Bell, Menu, X, User, LogOut, Settings, Wallet, History, BarChart2 } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Avatar } from "@/components/ui/avatar"
-import { Dropdown, DropdownItem, DropdownSeparator } from "@/components/ui/dropdown"
 import { ThemeToggle } from "@/components/ui/theme-toggle"
 import { motion } from "framer-motion"
 import { getCurrentUser, logout } from "@/lib/auth"
 import type { User as AuthUser } from "@/types/auth"
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu"
 
 export default function Header() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
@@ -45,11 +51,33 @@ export default function Header() {
     return () => window.removeEventListener("scroll", handleScroll)
   }, [])
 
+  // Main navigation items
   const navigation = [
-    { name: "Markets", href: "/markets" },
-    { name: "Trade", href: "/trade/btc-usdt" },
-    { name: "Wallet", href: "/wallet" },
-    { name: "History", href: "/history" },
+    { name: "Markets", href: "/markets", icon: <BarChart2 className="h-4 w-4 mr-2" /> },
+    {
+      name: "Trade",
+      href: "/trade/btc-usdt",
+      icon: (
+        <svg className="h-4 w-4 mr-2" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M2 2V19C2 20.66 3.34 22 5 22H22"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+          <path
+            d="M5 17L10 12L13 15L22 6"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+    },
+    { name: "Wallet", href: "/wallet", icon: <Wallet className="h-4 w-4 mr-2" /> },
+    { name: "History", href: "/history", icon: <History className="h-4 w-4 mr-2" /> },
   ]
 
   const handleLogout = async () => {
@@ -89,7 +117,7 @@ export default function Header() {
           transition={{ duration: 0.5, delay: 0.1 }}
           className="hidden md:flex md:gap-x-8"
         >
-          {navigation.map((item, index) => (
+          {navigation.map((item) => (
             <Link
               key={item.name}
               href={item.href}
@@ -122,9 +150,9 @@ export default function Header() {
           {loading ? (
             <div className="h-9 w-9 rounded-full bg-muted animate-pulse"></div>
           ) : user ? (
-            <Dropdown
-              trigger={
-                <button className="rounded-full">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="relative h-9 w-9 rounded-full">
                   <Avatar
                     src={user.picture}
                     alt={user.name || user.email}
@@ -138,50 +166,55 @@ export default function Header() {
                         : "U"
                     }
                   />
-                </button>
-              }
-              align="right"
-              className="w-56"
-            >
-              <div className="flex items-center justify-start gap-2 p-2">
-                <Avatar
-                  src={user.picture}
-                  alt={user.name || user.email}
-                  fallback={
-                    user.name
-                      ? user.name
-                          .split(" ")
-                          .map((n) => n[0])
-                          .join("")
-                          .toUpperCase()
-                      : "U"
-                  }
-                  size="sm"
-                />
-                <div className="flex flex-col space-y-1 leading-none">
-                  {user.name && <p className="font-medium">{user.name}</p>}
-                  <p className="w-[200px] truncate text-sm text-muted-foreground">{user.email}</p>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56" align="end" forceMount>
+                <div className="flex items-center justify-start gap-2 p-2">
+                  <Avatar
+                    src={user.picture}
+                    alt={user.name || user.email}
+                    fallback={
+                      user.name
+                        ? user.name
+                            .split(" ")
+                            .map((n) => n[0])
+                            .join("")
+                            .toUpperCase()
+                        : "U"
+                    }
+                    className="h-8 w-8"
+                  />
+                  <div className="flex flex-col space-y-1 leading-none">
+                    {user.name && <p className="font-medium">{user.name}</p>}
+                    <p className="w-[200px] truncate text-sm text-muted-foreground">{user.email}</p>
+                  </div>
                 </div>
-              </div>
-              <DropdownSeparator />
-              <DropdownItem onClick={() => (window.location.href = "/profile")}>
-                <User className="mr-2 h-4 w-4" />
-                <span>Profile</span>
-              </DropdownItem>
-              <DropdownItem onClick={() => (window.location.href = "/wallet")}>
-                <Wallet className="mr-2 h-4 w-4" />
-                <span>Wallet</span>
-              </DropdownItem>
-              <DropdownItem onClick={() => (window.location.href = "/settings")}>
-                <Settings className="mr-2 h-4 w-4" />
-                <span>Settings</span>
-              </DropdownItem>
-              <DropdownSeparator />
-              <DropdownItem onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                <span>Log out</span>
-              </DropdownItem>
-            </Dropdown>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem asChild>
+                  <Link href="/profile" className="flex w-full cursor-pointer items-center">
+                    <User className="mr-2 h-4 w-4" />
+                    <span>Profile</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/wallet" className="flex w-full cursor-pointer items-center">
+                    <Wallet className="mr-2 h-4 w-4" />
+                    <span>Wallet</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuItem asChild>
+                  <Link href="/settings" className="flex w-full cursor-pointer items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    <span>Settings</span>
+                  </Link>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={handleLogout} className="cursor-pointer">
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           ) : (
             <div className="flex items-center gap-2">
               <Button
@@ -229,16 +262,44 @@ export default function Header() {
               <Link
                 key={item.name}
                 href={item.href}
-                className={`block rounded-xl px-3 py-2 text-base font-medium ${
+                className={`flex items-center rounded-xl px-3 py-2 text-base font-medium ${
                   pathname?.startsWith(item.href)
                     ? "bg-primary/10 text-primary"
                     : "text-muted-foreground hover:bg-muted hover:text-primary"
                 }`}
                 onClick={() => setMobileMenuOpen(false)}
               >
+                {item.icon}
                 {item.name}
               </Link>
             ))}
+
+            {/* Additional mobile menu items */}
+            <Link
+              href="/profile"
+              className={`flex items-center rounded-xl px-3 py-2 text-base font-medium ${
+                pathname === "/profile"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-primary"
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <User className="mr-2 h-4 w-4" />
+              Profile
+            </Link>
+
+            <Link
+              href="/settings"
+              className={`flex items-center rounded-xl px-3 py-2 text-base font-medium ${
+                pathname === "/settings"
+                  ? "bg-primary/10 text-primary"
+                  : "text-muted-foreground hover:bg-muted hover:text-primary"
+              }`}
+              onClick={() => setMobileMenuOpen(false)}
+            >
+              <Settings className="mr-2 h-4 w-4" />
+              Settings
+            </Link>
           </div>
         </motion.div>
       )}

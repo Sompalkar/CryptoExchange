@@ -1,5 +1,5 @@
 import type { Metadata } from "next"
-import TradeView from "@/components/trade/trade-view"
+import EnhancedTradeView from "@/components/trade/enhanced-trade-view"
 
 interface TradePageProps {
   params: {
@@ -7,22 +7,39 @@ interface TradePageProps {
   }
 }
 
+/**
+ * Generate metadata for the trading page
+ * Includes SEO-friendly title and description based on the trading pair
+ */
 export async function generateMetadata({ params }: TradePageProps): Promise<Metadata> {
   const formattedPair = params.pair.replace("-", "/").toUpperCase()
 
   return {
-    title: `${formattedPair} Trading | Exchange Platform`,
-    description: `Trade ${formattedPair} on our secure cryptocurrency exchange platform.`,
+    title: `${formattedPair} Trading | NexusX Exchange`,
+    description: `Trade ${formattedPair} on NexusX - Advanced cryptocurrency trading platform with real-time charts, order book, and professional trading tools. Start trading now!`,
+    keywords: `${formattedPair}, cryptocurrency trading, crypto exchange, trading platform, ${formattedPair.split("/")[0]}, ${formattedPair.split("/")[1]}`,
   }
 }
 
+/**
+ * TradePage - Main trading interface page
+ *
+ * Features:
+ * - Full-screen trading layout
+ * - Responsive design for all screen sizes
+ * - Real-time trading interface
+ * - SEO-optimized metadata
+ *
+ * @param {object} params - Route parameters containing the trading pair
+ */
 export default function TradePage({ params }: TradePageProps) {
-  // Format the URL parameter (e.g., "btc-usdt" to "BTC/USDT")
+  // Convert URL format (btc-usdt) to display format (BTC/USDT)
   const formattedPair = params.pair.replace("-", "/").toUpperCase()
 
   return (
-    <div className="container mx-auto py-6 px-4">
-      <TradeView pair={formattedPair} />
+    <div className="h-screen flex flex-col overflow-hidden">
+      {/* Main trading interface */}
+      <EnhancedTradeView pair={formattedPair} />
     </div>
   )
 }
