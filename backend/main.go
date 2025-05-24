@@ -2,11 +2,10 @@ package main
 
 import (
 	"exchange/controllers"
-	"exchange/models"
 	"exchange/routes"
 	"exchange/websocket"
 	"log"
-	"net/http" 
+	"net/http"
 	"time"
 
 	"github.com/gorilla/mux"
@@ -16,21 +15,10 @@ import (
 
 func main() {
 	// Initialize database
-	// DataBase_URL := os.Getenv("DATABASE_URL")
-
-
-	// if DataBase_URL == "" {
-	// 	DataBase_URL = "host=localhost user=postgres password=postgres dbname=exchange port=5432 sslmode=disable"
-	// }
-
 	db, err := gorm.Open(postgres.Open("postgresql://postgres:S@mm7578@db.cikslxgwbjvvfictuzlu.supabase.co:5432/postgres"))
-
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
-
-	// Auto migrate models
-	db.AutoMigrate(&models.User{}, &models.Order{}, &models.Trade{})
 
 	// Initialize WebSocket pool
 	pool := websocket.NewPool()
@@ -38,7 +26,6 @@ func main() {
 
 	// Initialize controllers
 	userController := controllers.NewUserController(db)
-	// orderController := controllers.NewOrderController(db)
 	tradeController := controllers.NewTradeController(db)
 
 	// Initialize router
@@ -46,7 +33,6 @@ func main() {
 
 	// Setup routes
 	routes.UserRoutes(router, userController)
-	// routes.OrderRoutes(router, orderController)
 	routes.TradeRoutes(router, tradeController)
 	routes.WebSocketRoutes(pool)
 

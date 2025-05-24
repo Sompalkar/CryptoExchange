@@ -17,6 +17,13 @@ func NewTradeController(db *gorm.DB) *TradeController {
 	return &TradeController{DB: db}
 }
 
+
+
+
+
+
+
+
 func (c *TradeController) GetTrades(w http.ResponseWriter, r *http.Request) {
 	var trades []models.Trade
 	userID := r.Context().Value("user_id").(string)
@@ -32,6 +39,15 @@ func (c *TradeController) GetTrades(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(trades)
 }
+
+
+
+
+
+
+
+
+
 
 func (c *TradeController) GetTradeHistory(w http.ResponseWriter, r *http.Request) {
 	var trades []models.Trade

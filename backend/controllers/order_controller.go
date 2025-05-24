@@ -4,7 +4,6 @@ import (
 	"encoding/json"
 	"exchange/models"
 	"net/http"
-
 	"gorm.io/gorm"
 )
 
@@ -24,7 +23,7 @@ func (c *OrderController) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// TODO: Get user ID from JWT token
-	// order.UserID = r
+	// order.UserID =r.Context().Value("user_id").(string)
 	order.Status = models.OrderStatusPending
 
 	if err := c.Database.Create(&order).Error; err != nil {
@@ -48,6 +47,8 @@ func (c *OrderController) GetOrders(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(orders)
 }
+
+
 
 func (c *OrderController) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	orderID := r.URL.Query().Get("id")
@@ -73,3 +74,5 @@ func (c *OrderController) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(order)
 }
+
+

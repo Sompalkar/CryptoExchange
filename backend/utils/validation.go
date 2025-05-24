@@ -2,13 +2,14 @@ package utils
 
 import (
 	"errors"
+	"fmt"
 	"regexp"
 	"strings"
 )
 
 var (
 	ErrInvalidEmail    = errors.New("invalid email format")
-	ErrInvalidPassword = errors.New("password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, and one number")
+	ErrInvalidPassword = errors.New("password must be at least 8 characters long")
 	ErrInvalidAmount   = errors.New("amount must be greater than 0")
 	ErrInvalidPrice    = errors.New("price must be greater than 0")
 )
@@ -16,38 +17,20 @@ var (
 // ValidateEmail checks if the email is valid
 func ValidateEmail(email string) error {
 	email = strings.TrimSpace(email)
-	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$`)
+	emailRegex := regexp.MustCompile(`^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$`)
 	if !emailRegex.MatchString(email) {
 		return ErrInvalidEmail
 	}
 	return nil
 }
 
-// ValidatePassword checks if the password meets the requirements
+// ValidatePassword checks if the password meets the minimum length requirement
 func ValidatePassword(password string) error {
+
+	fmt.Println(password)
 	if len(password) < 8 {
 		return ErrInvalidPassword
 	}
-
-	hasUpper := false
-	hasLower := false
-	hasNumber := false
-
-	for _, char := range password {
-		switch {
-		case 'A' <= char && char <= 'Z':
-			hasUpper = true
-		case 'a' <= char && char <= 'z':
-			hasLower = true
-		case '0' <= char && char <= '9':
-			hasNumber = true
-		}
-	}
-
-	if !hasUpper || !hasLower || !hasNumber {
-		return ErrInvalidPassword
-	}
-
 	return nil
 }
 
