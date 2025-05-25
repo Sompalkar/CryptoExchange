@@ -1,107 +1,136 @@
-// package services
+package services
 
-// import (
-// 	"math/rand"
-// 	"sync"
-// 	"time"
+import (
+	"exchange/models"
+	"sync"
+	"time"
+)
 
-// 	"exchange/models"
-// )
+// MarketDataService handles real-time market data generation and distribution
+type MarketDataService struct {
+	orderBooks map[string]*models.OrderBook
+	tickChans  map[string]chan *Tick
+	stopChan   chan struct{}
+	mu         sync.RWMutex
+}
 
-// // MarketDataService handles real-time market data generation
-// type MarketDataService struct {
-// 	orderBook *models.OrderBook
-// 	tickChan  chan *models.Tick
-// 	stopChan  chan struct{}
-// 	mu        sync.RWMutex
-// }
+// Tick represents a market data tick
+type Tick struct {
+	Pair      string    `json:"pair"`
+	Price     float64   `json:"price"`
+	Volume    float64   `json:"volume"`
+	Timestamp time.Time `json:"timestamp"`
+}
 
-// // Tick represents a market data tick
-// type Tick struct {
-// 	Price     float64   `json:"price"`
-// 	Volume    float64   `json:"volume"`
-// 	Timestamp time.Time `json:"timestamp"`
-// }
+// NewMarketDataService creates a new market data service
+func NewMarketDataService() *MarketDataService {
+	return &MarketDataService{
+		orderBooks: make(map[string]*models.OrderBook),
+		tickChans:  make(map[string]chan *Tick),
+		stopChan:   make(chan struct{}),
+	}
+}
 
-// // NewMarketDataService creates a new market data service
-// func NewMarketDataService(orderBook *models.OrderBook) *MarketDataService {
-// 	return &MarketDataService{
-// 		orderBook: orderBook,
-// 		tickChan:  make(chan *Tick, 100),
-// 		stopChan:  make(chan struct{}),
-// 	}
-// }
+// AddOrderBook adds an order book to track
+func (s *MarketDataService) AddOrderBook(pair string, orderBook *models.OrderBook) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-// // Start begins generating market data
-// func (s *MarketDataService) Start() {
-// 	ticker := time.NewTicker(100 * time.Millisecond) // Generate ticks every 100ms
-// 	defer ticker.Stop()
+	s.orderBooks[pair] = orderBook
+	s.tickChans[pair] = make(chan *Tick, 100)
+}
 
-// 	for {
-// 		select {
-// 		case <-ticker.C:
-// 			s.generateTick()
-// 		case <-s.stopChan:
-// 			return
-// 		}
-// 	}
-// }
+// RemoveOrderBook removes an order book from tracking
+func (s *MarketDataService) RemoveOrderBook(pair string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
 
-// // Stop stops generating market data
-// func (s *MarketDataService) Stop() {
-// 	close(s.stopChan)
-// }
+	delete(s.orderBooks, pair)
+	if ch, exists := s.tickChans[pair]; exists {
+		close(ch)
+		delete(s.tickChans, pair)
+	}
+}
 
-// // GetTickChannel returns the channel for receiving ticks
-// func (s *MarketDataService) GetTickChannel() <-chan *Tick {
-// 	return s.tickChan
-// }
+// Start begins generating market data
+func (s *MarketDataService) Start() {
+	ticker := time.NewTicker(100 * time.Millisecond) // Generate ticks every 100ms
+	defer ticker.Stop()
 
-// // generateTick generates a new market data tick
-// func (s *MarketDataService) generateTick() {
-// 	s.mu.RLock()
-// 	defer s.mu.RUnlock()
+	for {
+		select {
+		case <-ticker.C:
+			s.generateTicks()
+		case <-s.stopChan:
+			return
+		}
+	}
+}
 
-// 	// Get current market price
-// 	midPrice := (s.orderBook.GetBestBid() + s.orderBook.GetBestAsk()) / 2
-// 	if midPrice == 0 {
-// 		midPrice = 1000.0 // Default price if no orders
-// 	}
+// Stop stops generating market data
+func (s *MarketDataService) Stop() {
+	close(s.stopChan)
+}
 
-// 	// Add some random price movement
-// 	priceChange := (rand.Float64() - 0.5) * 0.001 // ±0.05% random change
-// 	newPrice := midPrice * (1 + priceChange)
+// GetTickChannel returns the channel for receiving ticks for a pair
+func (s *MarketDataService) GetTickChannel(pair string) <-chan *Tick {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-// 	// Generate random volume
-// 	volume := rand.Float64() * 10 // Random volume between 0 and 10
+	if ch, exists := s.tickChans[pair]; exists {
+		return ch
+	}
+	return nil
+}
 
-// 	// Create and send tick
-// 	tick := &Tick{
-// 		Price:     newPrice,
-// 		Volume:    volume,
-// 		Timestamp: time.Now(),
-// 	}
+// generateTicks generates market data ticks for all tracked pairs
+func (s *MarketDataService) generateTicks() {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
 
-// 	select {
-// 	case s.tickChan <- tick:
-// 	default:
-// 		// Channel is full, drop the tick
-// 	}
-// }
+	for pair, orderBook := range s.orderBooks {
+		// Get current market price
+		midPrice := (orderBook.GetBestBid() + orderBook.GetBestAsk()) / 2
+		if midPrice == 0 {
+			continue // Skip if no market price
+		}
 
-// // GetMarketStats returns current market statistics
-// func (s *MarketDataService) GetMarketStats() map[string]interface{} {
-// 	s.mu.RLock()
-// 	defer s.mu.RUnlock()
+		// Create tick
+		tick := &Tick{
+			Pair:      pair,
+			Price:     midPrice,
+			Volume:    orderBook.Volume24h,
+			Timestamp: time.Now(),
+		}
 
-// 	return map[string]interface{}{
-// 		"last_price": s.orderBook.LastPrice,
-// 		"high_24h":   s.orderBook.High24h,
-// 		"low_24h":    s.orderBook.Low24h,
-// 		"volume_24h": s.orderBook.Volume24h,
-// 		"best_bid":   s.orderBook.GetBestBid(),
-// 		"best_ask":   s.orderBook.GetBestAsk(),
-// 		"spread":     s.orderBook.GetSpread(),
-// 		"timestamp":  time.Now(),
-// 	}
-// }
+		// Send tick to channel
+		select {
+		case s.tickChans[pair] <- tick:
+		default:
+			// Channel is full, drop the tick
+		}
+	}
+}
+
+// GetMarketStats returns current market statistics for a pair
+func (s *MarketDataService) GetMarketStats(pair string) map[string]interface{} {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+
+	orderBook := s.orderBooks[pair]
+	if orderBook == nil {
+		return nil
+	}
+
+	return map[string]interface{}{
+		"pair":       pair,
+		"last_price": orderBook.LastPrice,
+		"high_24h":   orderBook.High24h,
+		"low_24h":    orderBook.Low24h,
+		"volume_24h": orderBook.Volume24h,
+		"best_bid":   orderBook.GetBestBid(),
+		"best_ask":   orderBook.GetBestAsk(),
+		"spread":     orderBook.GetSpread(),
+		"timestamp":  time.Now(),
+	}
+}
