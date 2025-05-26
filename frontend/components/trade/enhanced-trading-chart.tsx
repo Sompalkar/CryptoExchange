@@ -697,3 +697,4 @@ export default function EnhancedTradingChart({ pair }: TradingChartProps) {
     </Card>
   )
 }
+

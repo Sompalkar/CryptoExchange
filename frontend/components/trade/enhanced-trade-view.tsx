@@ -5,11 +5,10 @@ import { motion } from "framer-motion"
 import EnhancedTradingChart from "./enhanced-trading-chart"
 import EnhancedOrderBook from "./enhanced-order-book"
 import EnhancedOrderForm from "./enhanced-order-form"
-import RecentTrades from "./recent-trades"
 import PairSelector from "./pair-selector"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import { fetchWithAuth } from "@/lib/auth"
 
 interface EnhancedTradeViewProps {
   pair: string
@@ -23,7 +22,6 @@ interface EnhancedTradeViewProps {
  * - Real-time price updates
  * - Chart display (left side)
  * - Order book and order form (right side)
- * - Recent trades and order history tabs
  *
  * @param {string} pair - Trading pair in format "BTC/USDT"
  */
@@ -37,18 +35,50 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
   const [high24h, setHigh24h] = useState<number>(37500.0)
   const [low24h, setLow24h] = useState<number>(36200.0)
   const [volume24h, setVolume24h] = useState<number>(28900000000)
+  // Loading state
+  const [loading, setLoading] = useState<boolean>(false)
 
   // Handle pair change from the pair selector
   const handlePairChange = (newPair: string) => {
     setCurrentPair(newPair)
+    fetchMarketData(newPair)
+  }
 
+  // Fetch market data from API
+  const fetchMarketData = async (pairToFetch: string = currentPair) => {
+    setLoading(true)
+    try {
+      const response = await fetchWithAuth(`/api/markets/${pairToFetch.replace("/", "")}/ticker`)
+
+      if (!response.ok) {
+        throw new Error("Failed to fetch market data")
+      }
+
+      const data = await response.json()
+
+      setCurrentPrice(data.lastPrice || 36750)
+      setPriceChange(data.change24h || 2.34)
+      setHigh24h(data.high24h || 37500)
+      setLow24h(data.low24h || 36200)
+      setVolume24h(data.volume24h || 28900000000)
+    } catch (err) {
+      console.error("Error fetching market data:", err)
+      // Use demo data as fallback
+      generateDemoMarketData(pairToFetch)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Generate demo market data
+  const generateDemoMarketData = (pairToFetch: string) => {
     // Reset price data when pair changes
     // In a real app, this would fetch new data for the selected pair
-    const basePrice = newPair.includes("BTC")
+    const basePrice = pairToFetch.includes("BTC")
       ? 36750
-      : newPair.includes("ETH")
+      : pairToFetch.includes("ETH")
         ? 2480
-        : newPair.includes("SOL")
+        : pairToFetch.includes("SOL")
           ? 142
           : 1000
 
@@ -59,8 +89,19 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
     setVolume24h(Math.random() * 30000000000)
   }
 
-  // Simulate real-time price updates
+  // Initial data fetch
   useEffect(() => {
+    fetchMarketData()
+
+    // Set up periodic updates
+    const interval = setInterval(() => fetchMarketData(), 30000)
+    return () => clearInterval(interval)
+  }, [])
+
+  // Simulate real-time price updates (for demo purposes)
+  useEffect(() => {
+    if (loading) return
+
     const interval = setInterval(() => {
       // Small random price fluctuations
       const change = (Math.random() - 0.5) * (currentPrice * 0.001)
@@ -82,7 +123,7 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
     }, 3000)
 
     return () => clearInterval(interval)
-  }, [currentPair, currentPrice, high24h, low24h])
+  }, [currentPair, currentPrice, high24h, low24h, loading])
 
   // Format volume for display
   const formatVolume = (volume: number) => {
@@ -128,7 +169,7 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
       </motion.div>
 
       {/* Main Trading Interface - Improved Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-4 h-[calc(100vh-200px)]">
+      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-4 h-[calc(100vh-180px)]">
         {/* Left Side - Chart (Takes 3 columns on lg screens = 75%) */}
         <div className="lg:col-span-3 col-span-1">
           <motion.div
@@ -137,79 +178,38 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
             transition={{ delay: 0.1 }}
             className="h-full"
           >
-            <EnhancedTradingChart pair={currentPair} />
+            <Card className="h-full overflow-hidden">
+              <CardContent className="p-0 h-full">
+                <EnhancedTradingChart pair={currentPair} />
+              </CardContent>
+            </Card>
           </motion.div>
         </div>
 
         {/* Right Side - Order Book and Order Form (Takes 1 column on lg screens = 25%) */}
         <div className="lg:col-span-1 col-span-1 flex flex-col space-y-2 md:space-y-4 h-full">
-          {/* Order Book - Takes 45% of the right column height */}
+          {/* Order Book - Takes 40% of the right column height */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="h-[45%]"
+            className="h-[40%]"
           >
             <EnhancedOrderBook pair={currentPair} />
           </motion.div>
 
-          {/* Order Form - Takes 55% of the right column height */}
+          {/* Order Form - Takes 60% of the right column height */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="h-[55%]"
+            className="h-[60%]"
           >
             <EnhancedOrderForm pair={currentPair} currentPrice={currentPrice} />
           </motion.div>
         </div>
       </div>
-
-      {/* Bottom Section - Recent Trades and Open Orders */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-        className="h-64 md:h-80"
-      >
-        <Tabs defaultValue="recent-trades" className="h-full">
-          <TabsList>
-            <TabsTrigger value="recent-trades">Recent Trades</TabsTrigger>
-            <TabsTrigger value="open-orders">Open Orders</TabsTrigger>
-            <TabsTrigger value="order-history">Order History</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="recent-trades" className="h-full mt-2 md:mt-4">
-            <Card className="h-full">
-              <CardContent className="p-0 h-full">
-                <RecentTrades pair={currentPair} />
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="open-orders" className="h-full mt-2 md:mt-4">
-            <Card className="h-full">
-              <CardHeader className="py-3">
-                <CardTitle>Open Orders</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">No open orders</div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          <TabsContent value="order-history" className="h-full mt-2 md:mt-4">
-            <Card className="h-full">
-              <CardHeader className="py-3">
-                <CardTitle>Order History</CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="text-center py-8 text-muted-foreground">No order history</div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
-      </motion.div>
     </div>
   )
 }
+
