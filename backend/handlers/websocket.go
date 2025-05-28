@@ -24,6 +24,8 @@ type WebSocketHandler struct {
 	mu         sync.RWMutex
 }
 
+
+
 // NewWebSocketHandler creates a new WebSocket handler
 func NewWebSocketHandler(marketData *services.MarketDataService) *WebSocketHandler {
 	return &WebSocketHandler{
@@ -31,6 +33,7 @@ func NewWebSocketHandler(marketData *services.MarketDataService) *WebSocketHandl
 		clients:    make(map[string][]*websocket.Conn),
 	}
 }
+
 
 // HandleWebSocket handles incoming WebSocket connections
 func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +59,8 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	// Start goroutine to handle client connection
 	go h.handleClient(pair, conn)
 }
+
+
 
 // handleClient handles a single WebSocket client connection
 func (h *WebSocketHandler) handleClient(pair string, conn *websocket.Conn) {

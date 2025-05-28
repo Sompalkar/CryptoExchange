@@ -7,6 +7,8 @@ import (
 	"exchange/models"
 )
 
+
+
 // MarketMakerBot represents a bot that provides liquidity to the market
 // by placing buy and sell orders around the current market price
 type MarketMakerBot struct {
@@ -16,6 +18,8 @@ type MarketMakerBot struct {
 	interval  time.Duration // Time between order updates
 	stopChan  chan struct{}
 }
+
+
 
 // NewMarketMakerBot creates a new market maker bot
 func NewMarketMakerBot(orderBook *models.OrderBook, spread, volume float64, interval time.Duration) *MarketMakerBot {
@@ -27,6 +31,14 @@ func NewMarketMakerBot(orderBook *models.OrderBook, spread, volume float64, inte
 		stopChan:  make(chan struct{}),
 	}
 }
+
+
+
+
+
+
+
+
 
 // Start begins the market maker bot's operation
 func (bot *MarketMakerBot) Start() {
@@ -43,10 +55,19 @@ func (bot *MarketMakerBot) Start() {
 	}
 }
 
+
+
+
 // Stop stops the market maker bot
 func (bot *MarketMakerBot) Stop() {
 	close(bot.stopChan)
 }
+
+
+
+
+
+
 
 // updateOrders updates the bot's orders based on current market conditions
 func (bot *MarketMakerBot) updateOrders() {
@@ -89,14 +110,16 @@ func (bot *MarketMakerBot) updateOrders() {
 	bot.orderBook.AddOrder(sellOrder)
 }
 
+
+
+
+
+
+
+
 // AdjustParameters allows dynamic adjustment of bot parameters
 func (bot *MarketMakerBot) AdjustParameters(spread, volume float64, interval time.Duration) {
 	bot.spread = spread
 	bot.volume = volume
 	bot.interval = interval
-
-
-
-
-	
 }

@@ -6,6 +6,8 @@ import (
 	"time"
 )
 
+
+
 // MarketDataService handles real-time market data generation and distribution
 type MarketDataService struct {
 	orderBooks map[string]*models.OrderBook
@@ -14,6 +16,9 @@ type MarketDataService struct {
 	mu         sync.RWMutex
 }
 
+
+
+
 // Tick represents a market data tick
 type Tick struct {
 	Pair      string    `json:"pair"`
@@ -21,6 +26,9 @@ type Tick struct {
 	Volume    float64   `json:"volume"`
 	Timestamp time.Time `json:"timestamp"`
 }
+
+
+
 
 // NewMarketDataService creates a new market data service
 func NewMarketDataService() *MarketDataService {
@@ -31,6 +39,10 @@ func NewMarketDataService() *MarketDataService {
 	}
 }
 
+
+
+
+
 // AddOrderBook adds an order book to track
 func (s *MarketDataService) AddOrderBook(pair string, orderBook *models.OrderBook) {
 	s.mu.Lock()
@@ -39,6 +51,12 @@ func (s *MarketDataService) AddOrderBook(pair string, orderBook *models.OrderBoo
 	s.orderBooks[pair] = orderBook
 	s.tickChans[pair] = make(chan *Tick, 100)
 }
+
+
+
+
+
+
 
 // RemoveOrderBook removes an order book from tracking
 func (s *MarketDataService) RemoveOrderBook(pair string) {
@@ -51,6 +69,12 @@ func (s *MarketDataService) RemoveOrderBook(pair string) {
 		delete(s.tickChans, pair)
 	}
 }
+
+
+
+
+
+
 
 // Start begins generating market data
 func (s *MarketDataService) Start() {
@@ -67,10 +91,28 @@ func (s *MarketDataService) Start() {
 	}
 }
 
+
+
+
+
+
+
+
+
+
+
+
 // Stop stops generating market data
 func (s *MarketDataService) Stop() {
 	close(s.stopChan)
 }
+
+
+
+
+
+
+
 
 // GetTickChannel returns the channel for receiving ticks for a pair
 func (s *MarketDataService) GetTickChannel(pair string) <-chan *Tick {
@@ -82,6 +124,11 @@ func (s *MarketDataService) GetTickChannel(pair string) <-chan *Tick {
 	}
 	return nil
 }
+
+
+
+
+
 
 // generateTicks generates market data ticks for all tracked pairs
 func (s *MarketDataService) generateTicks() {
@@ -111,6 +158,16 @@ func (s *MarketDataService) generateTicks() {
 		}
 	}
 }
+
+
+
+
+
+
+
+
+
+
 
 // GetMarketStats returns current market statistics for a pair
 func (s *MarketDataService) GetMarketStats(pair string) map[string]interface{} {

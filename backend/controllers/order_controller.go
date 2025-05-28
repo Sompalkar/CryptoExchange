@@ -14,6 +14,9 @@ type OrderController struct {
 	OrderBook *models.OrderBook
 }
 
+
+
+
 // AddDatabaseRefernce creates a new OrderController instance
 func AddDatabaseRefernce(db *gorm.DB) *OrderController {
 	return &OrderController{
@@ -21,6 +24,8 @@ func AddDatabaseRefernce(db *gorm.DB) *OrderController {
 		OrderBook: models.NewOrderBook(),
 	}
 }
+
+
 
 // CreateOrder godoc
 // @Summary Create a new order
@@ -58,6 +63,15 @@ func (c *OrderController) CreateOrder(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(order)
 }
 
+
+
+
+
+
+
+
+
+
 // GetOrders godoc
 // @Summary Get user's orders
 // @Description Retrieves all orders for the authenticated user
@@ -78,6 +92,17 @@ func (c *OrderController) GetOrders(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(orders)
 }
+
+
+
+
+
+
+
+
+
+
+
 
 // CancelOrder godoc
 // @Summary Cancel an order
@@ -117,6 +142,18 @@ func (c *OrderController) CancelOrder(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(order)
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 // GetOrderBook godoc
 // @Summary Get current order book

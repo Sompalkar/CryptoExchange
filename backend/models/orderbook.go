@@ -6,22 +6,31 @@ import (
 )
 
 // OrderBookEntry represents a price level in the order book
+
 type OrderBookEntry struct {
+
 	Price  float64  // Price level
 	Amount float64  // Total amount at this price level
 	Orders []*Order // List of orders at this price level
+
 }
+
+
 
 // OrderBook represents the current state of the market
 // Contains buy and sell orders organized by price
+
+
 type OrderBook struct {
 	mu sync.RWMutex
 
 	// Buy orders (sorted by price in descending order)
 	BuyOrders *OrderHeap
 
+
 	// Sell orders (sorted by price in ascending order)
 	SellOrders *OrderHeap
+
 
 	// Last trade price
 	LastPrice float64
@@ -31,6 +40,7 @@ type OrderBook struct {
 	Low24h    float64
 	Volume24h float64
 }
+
 
 // NewOrderBook creates a new empty order book
 func NewOrderBook() *OrderBook {
