@@ -2,7 +2,9 @@ package main
 
 import (
 	"exchange/controllers"
+	"exchange/middleware"
 	"exchange/routes"
+	"exchange/services"
 	"exchange/websocket"
 	"log"
 	"net/http"
@@ -20,6 +22,9 @@ func main() {
 		log.Fatal("Failed to connect to database:", err)
 	}
 
+	// Initialize services
+	feeService := services.NewFeeService(0.001, 0.002) // 0.1% maker fee, 0.2% taker fee
+
 	// Initialize WebSocket pool
 	pool := websocket.NewPool()
 	go pool.Start()
@@ -27,19 +32,27 @@ func main() {
 	// Initialize controllers
 	userController := controllers.NewUserController(db)
 	tradeController := controllers.NewTradeController(db)
+	orderController := controllers.AddDatabaseRefernce(db, feeService)
+
+	// Initialize rate limiter
+	rateLimiter := middleware.NewRateLimiter(100, time.Minute)
 
 	// Initialize router
 	router := mux.NewRouter()
 
+	// Apply rate limiting middleware
+	router.Use(rateLimiter.RateLimit)
+
 	// Setup routes
 	routes.UserRoutes(router, userController)
 	routes.TradeRoutes(router, tradeController)
+	routes.OrderRoutes(router, orderController)
 	routes.WebSocketRoutes(pool)
 
 	// Setup CORS middleware
 	router.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			w.Header().Set("Access-Control-Allow-Origin", "*")
+			w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
 			if r.Method == "OPTIONS" {

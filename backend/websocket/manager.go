@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"exchange/models"
 	"log"
 	"sync"
 
@@ -15,13 +16,14 @@ type Client struct {
 	mu   sync.Mutex
 }
 
-// Pool represents a group of connected clients
+// Pool manages WebSocket connections
 type Pool struct {
 	Register   chan *Client
 	Unregister chan *Client
 	Clients    map[*Client]bool
 	Broadcast  chan []byte
-	mu         sync.Mutex
+	OrderBook  *models.OrderBook
+	mu         sync.RWMutex
 }
 
 // NewPool creates a new WebSocket pool
@@ -31,6 +33,7 @@ func NewPool() *Pool {
 		Unregister: make(chan *Client),
 		Clients:    make(map[*Client]bool),
 		Broadcast:  make(chan []byte),
+		OrderBook:  models.NewOrderBook(),
 	}
 }
 
@@ -42,24 +45,37 @@ func (pool *Pool) Start() {
 			pool.mu.Lock()
 			pool.Clients[client] = true
 			pool.mu.Unlock()
-			log.Printf("Client %s connected. Size of connection pool: %d", client.ID, len(pool.Clients))
-
+			log.Printf("Client connected. Size of connection pool: %d", len(pool.Clients))
 		case client := <-pool.Unregister:
 			pool.mu.Lock()
 			delete(pool.Clients, client)
 			pool.mu.Unlock()
-			log.Printf("Client %s disconnected. Size of connection pool: %d", client.ID, len(pool.Clients))
-
+			log.Printf("Client disconnected. Size of connection pool: %d", len(pool.Clients))
 		case message := <-pool.Broadcast:
-			pool.mu.Lock()
+			pool.mu.RLock()
 			for client := range pool.Clients {
-				if err := client.Conn.WriteMessage(websocket.TextMessage, message); err != nil {
-					log.Printf("Error broadcasting message to client %s: %v", client.ID, err)
-					client.Conn.Close()
-					delete(pool.Clients, client)
+				if err := client.Conn.WriteMessage(1, message); err != nil {
+					log.Printf("Error broadcasting message: %v", err)
 				}
 			}
-			pool.mu.Unlock()
+			pool.mu.RUnlock()
 		}
 	}
+}
+
+// GetOrderBook returns the current order book
+func (pool *Pool) GetOrderBook() *models.OrderBook {
+	pool.mu.RLock()
+	defer pool.mu.RUnlock()
+	return pool.OrderBook
+}
+
+// UpdateOrderBook updates the order book and broadcasts changes
+func (pool *Pool) UpdateOrderBook(order *models.Order) {
+	pool.mu.Lock()
+	pool.OrderBook.AddOrder(order)
+	pool.mu.Unlock()
+
+	// Broadcast order book update
+	pool.Broadcast <- []byte("orderbook_update")
 }

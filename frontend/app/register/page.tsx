@@ -35,7 +35,7 @@ export default function RegisterPage() {
       }
 
       await register(name, email, password)
-      router.push("/dashboard")
+      router.push("/trade-btc")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed. Please try again.")
     } finally {

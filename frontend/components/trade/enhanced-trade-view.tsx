@@ -1,6 +1,231 @@
+// "use client"
+
+// import { useState, useEffect } from "react"
+// import { motion } from "framer-motion"
+// import EnhancedTradingChart from "./enhanced-trading-chart"
+// import EnhancedOrderBook from "./enhanced-order-book"
+// import EnhancedOrderForm from "./enhanced-order-form"
+// import PairSelector from "./pair-selector"
+// import { Card, CardContent } from "@/components/ui/card"
+// import { Badge } from "@/components/ui/badge"
+// import { fetchWithAuth } from "@/lib/auth"
+
+// interface EnhancedTradeViewProps {
+//   pair: string
+// }
+
+// /**
+//  * EnhancedTradeView - Main trading interface component
+//  *
+//  * This component orchestrates the entire trading view with:
+//  * - Trading pair selection
+//  * - Real-time price updates
+//  * - Chart display (left side)
+//  * - Order book and order form (right side)
+//  *
+//  * @param {string} pair - Trading pair in format "BTC/USDT"
+//  */
+// export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeViewProps) {
+//   // State for the current trading pair
+//   const [currentPair, setCurrentPair] = useState<string>(pair)
+//   // State for current price and price change
+//   const [currentPrice, setCurrentPrice] = useState<number>(36750.0)
+//   const [priceChange, setPriceChange] = useState<number>(2.34)
+//   // State for 24h trading stats
+//   const [high24h, setHigh24h] = useState<number>(37500.0)
+//   const [low24h, setLow24h] = useState<number>(36200.0)
+//   const [volume24h, setVolume24h] = useState<number>(28900000000)
+//   // Loading state
+//   const [loading, setLoading] = useState<boolean>(false)
+
+//   // Handle pair change from the pair selector
+//   const handlePairChange = (newPair: string) => {
+//     setCurrentPair(newPair)
+//     fetchMarketData(newPair)
+//   }
+
+//   // Fetch market data from API
+//   const fetchMarketData = async (pairToFetch: string = currentPair) => {
+//     setLoading(true)
+//     try {
+//       const response = await fetchWithAuth(`/api/markets/${pairToFetch.replace("/", "")}/ticker`)
+
+//       if (!response.ok) {
+//         throw new Error("Failed to fetch market data")
+//       }
+
+//       const data = await response.json()
+
+//       setCurrentPrice(data.lastPrice || 36750)
+//       setPriceChange(data.change24h || 2.34)
+//       setHigh24h(data.high24h || 37500)
+//       setLow24h(data.low24h || 36200)
+//       setVolume24h(data.volume24h || 28900000000)
+//     } catch (err) {
+//       console.error("Error fetching market data:", err)
+//       // Use demo data as fallback
+//       generateDemoMarketData(pairToFetch)
+//     } finally {
+//       setLoading(false)
+//     }
+//   }
+
+//   // Generate demo market data
+//   const generateDemoMarketData = (pairToFetch: string) => {
+//     // Reset price data when pair changes
+//     // In a real app, this would fetch new data for the selected pair
+//     const basePrice = pairToFetch.includes("BTC")
+//       ? 36750
+//       : pairToFetch.includes("ETH")
+//         ? 2480
+//         : pairToFetch.includes("SOL")
+//           ? 142
+//           : 1000
+
+//     setCurrentPrice(basePrice)
+//     setPriceChange((Math.random() - 0.3) * 5) // Slightly biased toward positive
+//     setHigh24h(basePrice * (1 + Math.random() * 0.05))
+//     setLow24h(basePrice * (1 - Math.random() * 0.05))
+//     setVolume24h(Math.random() * 30000000000)
+//   }
+
+//   // Initial data fetch
+//   useEffect(() => {
+//     fetchMarketData()
+
+//     // Set up periodic updates
+//     const interval = setInterval(() => fetchMarketData(), 30000)
+//     return () => clearInterval(interval)
+//   }, [])
+
+//   // Simulate real-time price updates (for demo purposes)
+//   useEffect(() => {
+//     if (loading) return
+
+//     const interval = setInterval(() => {
+//       // Small random price fluctuations
+//       const change = (Math.random() - 0.5) * (currentPrice * 0.001)
+//       setCurrentPrice((prev) => {
+//         const newPrice = Math.max(prev + change, 1)
+//         // Update 24h high/low if needed
+//         if (newPrice > high24h) setHigh24h(newPrice)
+//         if (newPrice < low24h) setLow24h(newPrice)
+//         return newPrice
+//       })
+
+//       // Occasionally update the price change percentage
+//       if (Math.random() > 0.7) {
+//         setPriceChange((prev) => prev + (Math.random() - 0.5) * 0.2)
+//       }
+
+//       // Update volume
+//       setVolume24h((prev) => prev + Math.random() * 100000)
+//     }, 3000)
+
+//     return () => clearInterval(interval)
+//   }, [currentPair, currentPrice, high24h, low24h, loading])
+
+//   // Format volume for display
+//   const formatVolume = (volume: number) => {
+//     if (volume >= 1e9) return `$${(volume / 1e9).toFixed(2)}B`
+//     if (volume >= 1e6) return `$${(volume / 1e6).toFixed(2)}M`
+//     if (volume >= 1e3) return `$${(volume / 1e3).toFixed(2)}K`
+//     return `$${volume.toFixed(2)}`
+//   }
+
+//   return (
+//     <div className="flex-1 p-2 md:p-4 space-y-2 md:space-y-4">
+//       {/* Price Header with Pair Selector */}
+//       <motion.div
+//         initial={{ opacity: 0, y: -20 }}
+//         animate={{ opacity: 1, y: 0 }}
+//         className="flex flex-col md:flex-row md:items-center justify-between gap-2 md:gap-4"
+//       >
+//         <div className="flex items-center gap-4">
+//           {/* Pair selector component */}
+//           <PairSelector currentPair={currentPair} onPairChange={handlePairChange} />
+
+//           <div className="flex items-center gap-2">
+//             <span className="text-2xl md:text-3xl font-bold">${currentPrice.toLocaleString()}</span>
+//             <Badge className={`${priceChange >= 0 ? "bg-green-500" : "bg-red-500"}`}>
+//               {priceChange >= 0 ? "+" : ""}
+//               {priceChange.toFixed(2)}%
+//             </Badge>
+//           </div>
+//         </div>
+
+//         {/* 24h Trading Stats */}
+//         <div className="flex items-center gap-4 text-sm text-muted-foreground">
+//           <div>
+//             24h High: <span className="text-foreground">${high24h.toLocaleString()}</span>
+//           </div>
+//           <div>
+//             24h Low: <span className="text-foreground">${low24h.toLocaleString()}</span>
+//           </div>
+//           <div>
+//             24h Vol: <span className="text-foreground">{formatVolume(volume24h)}</span>
+//           </div>
+//         </div>
+//       </motion.div>
+
+//       {/* Main Trading Interface - Improved Layout */}
+//       <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-4 h-[calc(100vh-180px)]">
+//         {/* Left Side - Chart (Takes 3 columns on lg screens = 75%) */}
+//         <div className="lg:col-span-3 col-span-1">
+//           <motion.div
+//             initial={{ opacity: 0, x: -20 }}
+//             animate={{ opacity: 1, x: 0 }}
+//             transition={{ delay: 0.1 }}
+//             className="h-full"
+//           >
+//             <Card className="h-full overflow-hidden">
+//               <CardContent className="p-0 h-full">
+//                 <EnhancedTradingChart pair={currentPair} />
+//               </CardContent>
+//             </Card>
+//           </motion.div>
+//         </div>
+
+//         {/* Right Side - Order Book and Order Form (Takes 1 column on lg screens = 25%) */}
+//         <div className="lg:col-span-1 col-span-1 flex flex-col space-y-2 md:space-y-4 h-full">
+//           {/* Order Book - Takes 40% of the right column height */}
+//           <motion.div
+//             initial={{ opacity: 0, x: 20 }}
+//             animate={{ opacity: 1, x: 0 }}
+//             transition={{ delay: 0.2 }}
+//             className="h-[40%]"
+//           >
+//             <EnhancedOrderBook pair={currentPair} />
+//           </motion.div>
+
+//           {/* Order Form - Takes 60% of the right column height */}
+//           <motion.div
+//             initial={{ opacity: 0, x: 20 }}
+//             animate={{ opacity: 1, x: 0 }}
+//             transition={{ delay: 0.3 }}
+//             className="h-[60%]"
+//           >
+//             <EnhancedOrderForm pair={currentPair} currentPrice={currentPrice} />
+//           </motion.div>
+//         </div>
+//       </div>
+//     </div>
+//   )
+// }
+
+
+
+
+
+
+
+
+
+
+
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { motion } from "framer-motion"
 import EnhancedTradingChart from "./enhanced-trading-chart"
 import EnhancedOrderBook from "./enhanced-order-book"
@@ -8,22 +233,15 @@ import EnhancedOrderForm from "./enhanced-order-form"
 import PairSelector from "./pair-selector"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { fetchWithAuth } from "@/lib/auth"
+import { apiRequest, connectWebSocket } from "@/lib/api"
+import type { MarketTicker, OrderBook } from "@/types/api"
 
 interface EnhancedTradeViewProps {
   pair: string
 }
 
 /**
- * EnhancedTradeView - Main trading interface component
- *
- * This component orchestrates the entire trading view with:
- * - Trading pair selection
- * - Real-time price updates
- * - Chart display (left side)
- * - Order book and order form (right side)
- *
- * @param {string} pair - Trading pair in format "BTC/USDT"
+ * EnhancedTradeView - Main trading interface component with improved layout
  */
 export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeViewProps) {
   // State for the current trading pair
@@ -37,30 +255,53 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
   const [volume24h, setVolume24h] = useState<number>(28900000000)
   // Loading state
   const [loading, setLoading] = useState<boolean>(false)
+  // Order book data for chart flicker effect
+  const [orderBookData, setOrderBookData] = useState<OrderBook | null>(null)
+  // WebSocket reference
+  const wsRef = useRef<WebSocket | null>(null)
 
   // Handle pair change from the pair selector
   const handlePairChange = (newPair: string) => {
     setCurrentPair(newPair)
     fetchMarketData(newPair)
+
+    // Update WebSocket subscription
+    if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) {
+      // Unsubscribe from old pair
+      wsRef.current.send(
+        JSON.stringify({
+          action: "unsubscribe",
+          channel: `market.${currentPair.replace("/", "")}`,
+        }),
+      )
+
+      // Subscribe to new pair
+      wsRef.current.send(
+        JSON.stringify({
+          action: "subscribe",
+          channel: `market.${newPair.replace("/", "")}`,
+        }),
+      )
+    }
+  }
+
+  // Handle order book data updates for chart flicker effect
+  const handleOrderBookUpdate = (data: OrderBook) => {
+    setOrderBookData(data)
   }
 
   // Fetch market data from API
   const fetchMarketData = async (pairToFetch: string = currentPair) => {
     setLoading(true)
     try {
-      const response = await fetchWithAuth(`/api/markets/${pairToFetch.replace("/", "")}/ticker`)
+      const formattedPair = pairToFetch.replace("/", "")
+      const data: MarketTicker = await apiRequest(`/api/markets/${formattedPair}/ticker`)
 
-      if (!response.ok) {
-        throw new Error("Failed to fetch market data")
-      }
-
-      const data = await response.json()
-
-      setCurrentPrice(data.lastPrice || 36750)
-      setPriceChange(data.change24h || 2.34)
-      setHigh24h(data.high24h || 37500)
-      setLow24h(data.low24h || 36200)
-      setVolume24h(data.volume24h || 28900000000)
+      setCurrentPrice(data.lastPrice)
+      setPriceChange(data.change24h)
+      setHigh24h(data.high24h)
+      setLow24h(data.low24h)
+      setVolume24h(data.volume24h)
     } catch (err) {
       console.error("Error fetching market data:", err)
       // Use demo data as fallback
@@ -72,8 +313,6 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
 
   // Generate demo market data
   const generateDemoMarketData = (pairToFetch: string) => {
-    // Reset price data when pair changes
-    // In a real app, this would fetch new data for the selected pair
     const basePrice = pairToFetch.includes("BTC")
       ? 36750
       : pairToFetch.includes("ETH")
@@ -83,24 +322,54 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
           : 1000
 
     setCurrentPrice(basePrice)
-    setPriceChange((Math.random() - 0.3) * 5) // Slightly biased toward positive
+    setPriceChange((Math.random() - 0.3) * 5)
     setHigh24h(basePrice * (1 + Math.random() * 0.05))
     setLow24h(basePrice * (1 - Math.random() * 0.05))
     setVolume24h(Math.random() * 30000000000)
   }
 
+  // Initialize WebSocket connection
+  useEffect(() => {
+    const formattedPair = currentPair.replace("/", "")
+    const channels = [`market.${formattedPair}`, `orderbook.${formattedPair}`]
+
+    wsRef.current = connectWebSocket(channels, (data) => {
+      if (data.channel === `market.${formattedPair}`) {
+        // Update market data
+        if (data.data) {
+          setCurrentPrice(data.data.lastPrice)
+          setPriceChange(data.data.change24h)
+          setHigh24h(data.data.high24h)
+          setLow24h(data.data.low24h)
+          setVolume24h(data.data.volume24h)
+        }
+      } else if (data.channel === `orderbook.${formattedPair}`) {
+        // Update order book data
+        if (data.data) {
+          setOrderBookData(data.data)
+        }
+      }
+    })
+
+    return () => {
+      if (wsRef.current) {
+        wsRef.current.close()
+      }
+    }
+  }, [currentPair])
+
   // Initial data fetch
   useEffect(() => {
     fetchMarketData()
 
-    // Set up periodic updates
+    // Set up periodic updates as fallback if WebSocket fails
     const interval = setInterval(() => fetchMarketData(), 30000)
     return () => clearInterval(interval)
   }, [])
 
-  // Simulate real-time price updates (for demo purposes)
+  // Simulate real-time price updates (for demo purposes) if WebSocket is not available
   useEffect(() => {
-    if (loading) return
+    if (loading || wsRef.current?.readyState === WebSocket.OPEN) return
 
     const interval = setInterval(() => {
       // Small random price fluctuations
@@ -123,7 +392,7 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
     }, 3000)
 
     return () => clearInterval(interval)
-  }, [currentPair, currentPrice, high24h, low24h, loading])
+  }, [currentPair, currentPrice, high24h, low24h, loading, wsRef.current?.readyState])
 
   // Format volume for display
   const formatVolume = (volume: number) => {
@@ -168,42 +437,42 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
         </div>
       </motion.div>
 
-      {/* Main Trading Interface - Improved Layout */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-2 md:gap-4 h-[calc(100vh-180px)]">
-        {/* Left Side - Chart (Takes 3 columns on lg screens = 75%) */}
-        <div className="lg:col-span-3 col-span-1">
+      {/* Main Trading Interface - Redesigned Layout (60% chart, 40% right panel) */}
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-2 md:gap-4 h-[calc(100vh-180px)]">
+        {/* Left Side - Chart (Takes 3 columns = 60%) */}
+        <div className="lg:col-span-4 col-span-1">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.1 }}
             className="h-full"
           >
-            <Card className="h-full overflow-hidden">
+            <Card className="h-full ">
               <CardContent className="p-0 h-full">
-                <EnhancedTradingChart pair={currentPair} />
+                <EnhancedTradingChart pair={currentPair} orderBookData={orderBookData} currentPrice={currentPrice} />
               </CardContent>
             </Card>
           </motion.div>
         </div>
 
-        {/* Right Side - Order Book and Order Form (Takes 1 column on lg screens = 25%) */}
+        {/* Right Side - Order Book and Order Form (Takes 2 columns = 40%) */}
         <div className="lg:col-span-1 col-span-1 flex flex-col space-y-2 md:space-y-4 h-full">
-          {/* Order Book - Takes 40% of the right column height */}
-          <motion.div
+          {/* Order Book - Takes 50% of the right column height */}
+          {/* <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.2 }}
-            className="h-[40%]"
+            className="h-[20%]"
           >
-            <EnhancedOrderBook pair={currentPair} />
-          </motion.div>
+            <EnhancedOrderBook pair={currentPair} onDataUpdate={handleOrderBookUpdate} />
+          </motion.div> */}
 
-          {/* Order Form - Takes 60% of the right column height */}
+          {/* Order Form - Takes 50% of the right column height */}
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="h-[60%]"
+            className=" "
           >
             <EnhancedOrderForm pair={currentPair} currentPrice={currentPrice} />
           </motion.div>
@@ -212,4 +481,3 @@ export default function EnhancedTradeView({ pair = "BTC/USDT" }: EnhancedTradeVi
     </div>
   )
 }
-

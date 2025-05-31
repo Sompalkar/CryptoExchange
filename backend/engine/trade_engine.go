@@ -1,26 +1,38 @@
 package engine
 
 import (
+	"encoding/json"
 	"errors"
+	"exchange/handlers"
 	"exchange/models"
+	"exchange/websocket"
+	"log"
+	"math/rand"
 	"sync"
 	"time"
+)
+
+// Error definitions
+var (
+	ErrInvalidTradingPair = errors.New("invalid trading pair")
 )
 
 // TradeEngine handles order matching and market making
 type TradeEngine struct {
 	orderBooks   map[string]*models.OrderBook // Map of trading pair to order book
 	marketMakers map[string]*MarketMakerBot   // Map of trading pair to market maker bot
-	wsHandler    *WebSocketHandler            // WebSocket handler for real-time updates
+	wsHandler    *handlers.WebSocketHandler   // WebSocket handler for real-time updates
 	mu           sync.RWMutex
+	wsHub        *websocket.Pool
 }
 
 // NewTradeEngine creates a new trade engine instance
-func NewTradeEngine(wsHandler *WebSocketHandler) *TradeEngine {
+func NewTradeEngine(wsHandler *handlers.WebSocketHandler, wsHub *websocket.Pool) *TradeEngine {
 	return &TradeEngine{
 		orderBooks:   make(map[string]*models.OrderBook),
 		marketMakers: make(map[string]*MarketMakerBot),
 		wsHandler:    wsHandler,
+		wsHub:        wsHub,
 	}
 }
 
@@ -41,27 +53,36 @@ func (e *TradeEngine) GetOrderBook(pair string) *models.OrderBook {
 	return e.orderBooks[pair]
 }
 
-// ProcessOrder processes a new order and attempts to match it
-func (e *TradeEngine) ProcessOrder(order *models.Order) error {
+// @Summary Process a new order
+// @Description Processes a new order and attempts to match it with existing orders
+// @Tags trading
+// @Accept json
+// @Produce json
+// @Param order body models.Order true "Order to process"
+// @Success 200 {object} TradeResult
+// @Failure 400 {object} ErrorResponse
+// @Failure 500 {object} ErrorResponse
+// @Router /api/v1/trade/process [post]
+func (e *TradeEngine) ProcessOrder(order *models.Order) (*TradeResult, error) {
 	e.mu.Lock()
 	defer e.mu.Unlock()
 
 	orderBook := e.orderBooks[order.Pair]
 	if orderBook == nil {
-		return ErrInvalidTradingPair
+		return nil, ErrInvalidTradingPair
 	}
 
 	// Add order to order book
 	orderBook.AddOrder(order)
 
 	// Attempt to match orders
-	matches := orderBook.MatchOrders()
+	orderBook.MatchOrders()
 
 	// Broadcast order book updates
 	e.broadcastOrderBookUpdate(order.Pair)
 
 	// Handle matches
-	for _, match := range matches {
+	for _, match := range orderBook.GetMatches() {
 		// Broadcast trade
 		e.broadcastTrade(match)
 
@@ -71,7 +92,15 @@ func (e *TradeEngine) ProcessOrder(order *models.Order) error {
 		}
 	}
 
-	return nil
+	// If this is a bot order and it was filled, create a new bot order
+	if order.IsBot && order.Status == models.OrderStatusFilled {
+		go e.createNewBotOrder(order.Pair)
+	}
+
+	return &TradeResult{
+		Order:  order,
+		Trades: orderBook.GetMatches(),
+	}, nil
 }
 
 // handleBotMatch handles a match involving a bot order
@@ -95,17 +124,27 @@ func (e *TradeEngine) createBotReplacementOrder(filledOrder *models.Order) {
 
 	// Create a new order in the opposite direction
 	newOrder := &models.Order{
-		Pair:    filledOrder.Pair,
-		Type:    filledOrder.Type,
-		Price:   filledOrder.Price,
-		Amount:  filledOrder.Amount,
-		Status:  models.OrderStatusPending,
-		IsBot:   true,
-		BotID:   filledOrder.BotID,
+		Pair:   filledOrder.Pair,
+		Type:   filledOrder.Type,
+		Price:  filledOrder.Price,
+		Amount: filledOrder.Amount,
+		Status: models.OrderStatusPending,
+		IsBot:  true,
+		BotID:  filledOrder.BotID,
 	}
 
 	// Add the new order to the order book
 	e.ProcessOrder(newOrder)
+}
+
+// OrderBookUpdate represents an order book update message
+type OrderBookUpdate struct {
+	Pair      string                  `json:"pair"`
+	Bids      []models.OrderBookEntry `json:"bids"`
+	Asks      []models.OrderBookEntry `json:"asks"`
+	Spread    float64                 `json:"spread"`
+	LastPrice float64                 `json:"last_price"`
+	Timestamp time.Time               `json:"timestamp"`
 }
 
 // broadcastOrderBookUpdate broadcasts order book updates to WebSocket clients
@@ -115,18 +154,22 @@ func (e *TradeEngine) broadcastOrderBookUpdate(pair string) {
 		return
 	}
 
-	update := map[string]interface{}{
-		"type": "orderbook",
-		"data": map[string]interface{}{
-			"pair":       pair,
-			"bids":       orderBook.GetBids(),
-			"asks":       orderBook.GetAsks(),
-			"spread":     orderBook.GetSpread(),
-			"last_price": orderBook.LastPrice,
-		},
+	update := OrderBookUpdate{
+		Pair:      pair,
+		Bids:      orderBook.GetBids(),
+		Asks:      orderBook.GetAsks(),
+		Spread:    orderBook.GetSpread(),
+		LastPrice: orderBook.LastPrice,
+		Timestamp: time.Now(),
 	}
 
-	e.wsHandler.BroadcastMessage(pair, update)
+	data, err := json.Marshal(update)
+	if err != nil {
+		log.Printf("Error marshaling order book update: %v", err)
+		return
+	}
+
+	e.wsHub.Broadcast <- data
 }
 
 // broadcastTrade broadcasts a trade to WebSocket clients
@@ -173,7 +216,7 @@ type MarketMakerConfig struct {
 	Spread    float64       // Target spread between buy and sell orders
 	Volume    float64       // Target volume per order
 	Interval  time.Duration // Time between order updates
-	MaxOrders int          // Maximum number of orders per side
+	MaxOrders int           // Maximum number of orders per side
 }
 
 // MarketMakerBot represents a bot that provides liquidity to the market
@@ -233,24 +276,24 @@ func (bot *MarketMakerBot) updateOrders() {
 	for i := 0; i < bot.config.MaxOrders; i++ {
 		// Create buy order
 		buyOrder := &models.Order{
-			Pair:    bot.pair,
-			Type:    models.OrderTypeBuy,
-			Price:   buyPrice * (1 - float64(i)*0.001), // Slightly lower price for each level
-			Amount:  bot.config.Volume,
-			Status:  models.OrderStatusPending,
-			IsBot:   true,
-			BotID:   bot.botID,
+			Pair:   bot.pair,
+			Type:   models.OrderTypeBuy,
+			Price:  buyPrice * (1 - float64(i)*0.001), // Slightly lower price for each level
+			Amount: bot.config.Volume,
+			Status: models.OrderStatusPending,
+			IsBot:  true,
+			BotID:  bot.botID,
 		}
 
 		// Create sell order
 		sellOrder := &models.Order{
-			Pair:    bot.pair,
-			Type:    models.OrderTypeSell,
-			Price:   sellPrice * (1 + float64(i)*0.001), // Slightly higher price for each level
-			Amount:  bot.config.Volume,
-			Status:  models.OrderStatusPending,
-			IsBot:   true,
-			BotID:   bot.botID,
+			Pair:   bot.pair,
+			Type:   models.OrderTypeSell,
+			Price:  sellPrice * (1 + float64(i)*0.001), // Slightly higher price for each level
+			Amount: bot.config.Volume,
+			Status: models.OrderStatusPending,
+			IsBot:  true,
+			BotID:  bot.botID,
 		}
 
 		// Add orders to the order book
@@ -259,7 +302,67 @@ func (bot *MarketMakerBot) updateOrders() {
 	}
 }
 
+// createNewBotOrder creates a new bot order after the previous one was filled
+func (e *TradeEngine) createNewBotOrder(pair string) {
+	// Add random delay to prevent all bots from creating orders simultaneously
+	time.Sleep(time.Duration(rand.Intn(1000)) * time.Millisecond)
+
+	order := &models.Order{
+		Pair:      pair,
+		Type:      models.OrderTypeBuy,
+		Price:     generateRandomPrice(pair),
+		Amount:    generateRandomAmount(),
+		IsBot:     true,
+		Status:    models.OrderStatusPending,
+		CreatedAt: time.Now(),
+	}
+
+	_, err := e.ProcessOrder(order)
+	if err != nil {
+		log.Printf("Error creating new bot order: %v", err)
+	}
+}
+
+// Helper functions for bot order generation
+func generateRandomPrice(pair string) float64 {
+	// Implement price generation logic based on current market conditions
+	return 0.0
+}
+
+func generateRandomAmount() float64 {
+	// Implement amount generation logic
+	return 0.0
+}
+
+// TradeResult represents the result of processing an order
+type TradeResult struct {
+	Order  *models.Order   `json:"order"`
+	Trades []*models.Trade `json:"trades"`
+}
+
+// ErrorResponse represents an error response
+type ErrorResponse struct {
+	Error string `json:"error"`
+}
+
+// @Summary Get all trading pairs
+// @Description Retrieves a list of all available trading pairs
+// @Tags trading
+// @Produce json
+// @Success 200 {array} string
+// @Router /api/v1/trade/pairs [get]
+func (e *TradeEngine) GetTradingPairs() []string {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+
+	pairs := make([]string, 0, len(e.orderBooks))
+	for pair := range e.orderBooks {
+		pairs = append(pairs, pair)
+	}
+	return pairs
+}
+
 // Errors
 var (
-	ErrInvalidTradingPair = errors.New("invalid trading pair")
+	ErrOrderBookNotFound = errors.New("order book not found")
 )

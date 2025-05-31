@@ -1,0 +1,271 @@
+openapi: 3.0.0
+info:
+  title: Exchange API
+  version: 1.0.0
+  description: API documentation for the cryptocurrency exchange
+
+servers:
+  - url: http://localhost:8080
+    description: Local development server
+
+components:
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  schemas:
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+        email:
+          type: string
+        username:
+          type: string
+        balance:
+          type: number
+          format: float
+
+    Order:
+      type: object
+      properties:
+        id:
+          type: string
+        user_id:
+          type: string
+        pair:
+          type: string
+        type:
+          type: string
+          enum: [LIMIT, MARKET]
+        side:
+          type: string
+          enum: [BUY, SELL]
+        price:
+          type: number
+          format: float
+        amount:
+          type: number
+          format: float
+        status:
+          type: string
+          enum: [OPEN, FILLED, CANCELLED]
+        fee:
+          type: number
+          format: float
+
+    Trade:
+      type: object
+      properties:
+        id:
+          type: string
+        order_id:
+          type: string
+        pair:
+          type: string
+        price:
+          type: number
+          format: float
+        amount:
+          type: number
+          format: float
+        fee:
+          type: number
+          format: float
+        timestamp:
+          type: string
+          format: date-time
+
+paths:
+  /api/users/register:
+    post:
+      summary: Register a new user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                username:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /api/users/login:
+    post:
+      summary: Login user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                email:
+                  type: string
+                password:
+                  type: string
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  token:
+                    type: string
+                  user:
+                    $ref: "#/components/schemas/User"
+
+  /api/users/me:
+    get:
+      summary: Get current user profile
+      security:
+        - BearerAuth: []
+      responses:
+        "200":
+          description: User profile retrieved successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /api/orders:
+    post:
+      summary: Create a new order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/Order"
+      responses:
+        "200":
+          description: Order created successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+    get:
+      summary: Get user orders
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: status
+          schema:
+            type: string
+            enum: [OPEN, FILLED, CANCELLED]
+        - in: query
+          name: pair
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of orders
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Order"
+
+  /api/orders/cancel:
+    post:
+      summary: Cancel an order
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                order_id:
+                  type: string
+      responses:
+        "200":
+          description: Order cancelled successfully
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Order"
+
+  /api/trades:
+    get:
+      summary: Get recent trades
+      parameters:
+        - in: query
+          name: pair
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: List of recent trades
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+
+  /api/trades/history:
+    get:
+      summary: Get user trade history
+      security:
+        - BearerAuth: []
+      parameters:
+        - in: query
+          name: pair
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 100
+      responses:
+        "200":
+          description: User trade history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Trade"
+
+  /ws:
+    get:
+      summary: WebSocket connection for real-time data
+      description: |
+        WebSocket endpoint for real-time market data, order book updates, and user notifications.
+        Subscribe to different channels:
+        - market.{pair} - Real-time market data
+        - orderbook.{pair} - Order book updates
+        - trades.{pair} - Recent trades
+        - user.{user_id} - User-specific notifications
+      responses:
+        "101":
+          description: WebSocket connection established

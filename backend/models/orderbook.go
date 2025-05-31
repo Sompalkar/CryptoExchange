@@ -2,24 +2,22 @@ package models
 
 import (
 	"container/heap"
+	"sort"
 	"sync"
+	"time"
 )
 
 // OrderBookEntry represents a price level in the order book
 
 type OrderBookEntry struct {
-
 	Price  float64  // Price level
 	Amount float64  // Total amount at this price level
 	Orders []*Order // List of orders at this price level
 
 }
 
-
-
 // OrderBook represents the current state of the market
 // Contains buy and sell orders organized by price
-
 
 type OrderBook struct {
 	mu sync.RWMutex
@@ -27,10 +25,8 @@ type OrderBook struct {
 	// Buy orders (sorted by price in descending order)
 	BuyOrders *OrderHeap
 
-
 	// Sell orders (sorted by price in ascending order)
 	SellOrders *OrderHeap
-
 
 	// Last trade price
 	LastPrice float64
@@ -39,14 +35,17 @@ type OrderBook struct {
 	High24h   float64
 	Low24h    float64
 	Volume24h float64
-}
 
+	// Recent matches
+	matches []*Trade
+}
 
 // NewOrderBook creates a new empty order book
 func NewOrderBook() *OrderBook {
 	return &OrderBook{
 		BuyOrders:  &OrderHeap{},
 		SellOrders: &OrderHeap{},
+		matches:    make([]*Trade, 0),
 	}
 }
 
@@ -62,7 +61,7 @@ func (ob *OrderBook) AddOrder(order *Order) {
 	}
 
 	// Try to match orders
-	ob.matchOrders()
+	ob.MatchOrders()
 }
 
 // CancelOrder removes an order from the order book
@@ -109,8 +108,10 @@ func (ob *OrderBook) GetSpread() float64 {
 	return bestAsk - bestBid
 }
 
-// matchOrders attempts to match buy and sell orders
-func (ob *OrderBook) matchOrders() {
+// MatchOrders attempts to match buy and sell orders
+func (ob *OrderBook) MatchOrders() {
+	ob.matches = make([]*Trade, 0) // Clear previous matches
+
 	for ob.BuyOrders.Len() > 0 && ob.SellOrders.Len() > 0 {
 		bestBuy := ob.BuyOrders.Peek()
 		bestSell := ob.SellOrders.Peek()
@@ -121,7 +122,7 @@ func (ob *OrderBook) matchOrders() {
 		}
 
 		// Calculate the amount to trade
-		amount := min(bestBuy.Amount, bestSell.Amount)
+		amount := minFloat64(bestBuy.Amount, bestSell.Amount)
 
 		// Create and record the trade
 		trade := &Trade{
@@ -129,6 +130,9 @@ func (ob *OrderBook) matchOrders() {
 			SellOrderID: bestSell.ID,
 			Amount:      amount,
 			Price:       bestSell.Price, // Use the sell price as the execution price
+			BuyOrder:    bestBuy,
+			SellOrder:   bestSell,
+			CreatedAt:   time.Now(),
 		}
 
 		// Update order amounts
@@ -146,6 +150,9 @@ func (ob *OrderBook) matchOrders() {
 		// Update last price and statistics
 		ob.LastPrice = trade.Price
 		ob.updateStatistics(trade)
+
+		// Add to matches
+		ob.matches = append(ob.matches, trade)
 	}
 }
 
@@ -161,9 +168,78 @@ func (ob *OrderBook) updateStatistics(trade *Trade) {
 }
 
 // Helper function to get minimum of two float64 values
-func min(a, b float64) float64 {
+func minFloat64(a, b float64) float64 {
 	if a < b {
 		return a
 	}
 	return b
+}
+
+// GetBids returns all buy orders sorted by price in descending order
+func (ob *OrderBook) GetBids() []OrderBookEntry {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+
+	entries := make([]OrderBookEntry, 0)
+	seenPrices := make(map[float64]int)
+
+	// Group orders by price
+	for _, order := range *ob.BuyOrders {
+		if idx, exists := seenPrices[order.Price]; exists {
+			entries[idx].Amount += order.Amount
+			entries[idx].Orders = append(entries[idx].Orders, order)
+		} else {
+			entries = append(entries, OrderBookEntry{
+				Price:  order.Price,
+				Amount: order.Amount,
+				Orders: []*Order{order},
+			})
+			seenPrices[order.Price] = len(entries) - 1
+		}
+	}
+
+	// Sort by price in descending order
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Price > entries[j].Price
+	})
+
+	return entries
+}
+
+// GetAsks returns all sell orders sorted by price in ascending order
+func (ob *OrderBook) GetAsks() []OrderBookEntry {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+
+	entries := make([]OrderBookEntry, 0)
+	seenPrices := make(map[float64]int)
+
+	// Group orders by price
+	for _, order := range *ob.SellOrders {
+		if idx, exists := seenPrices[order.Price]; exists {
+			entries[idx].Amount += order.Amount
+			entries[idx].Orders = append(entries[idx].Orders, order)
+		} else {
+			entries = append(entries, OrderBookEntry{
+				Price:  order.Price,
+				Amount: order.Amount,
+				Orders: []*Order{order},
+			})
+			seenPrices[order.Price] = len(entries) - 1
+		}
+	}
+
+	// Sort by price in ascending order
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Price < entries[j].Price
+	})
+
+	return entries
+}
+
+// GetMatches returns the matches that occurred during the last order processing
+func (ob *OrderBook) GetMatches() []*Trade {
+	ob.mu.RLock()
+	defer ob.mu.RUnlock()
+	return ob.matches
 }
