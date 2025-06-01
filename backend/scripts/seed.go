@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Connect to database
-	db, err := gorm.Open(postgres.Open("postgresql://postgres:S@mm7578@db.cikslxgwbjvvfictuzlu.supabase.co:5432/postgres"))
+	db, err := gorm.Open(postgres.Open("postgresql://postgres:postgres@localhost:5432/postgres"))
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}
@@ -42,10 +42,17 @@ func main() {
 		},
 	}
 
+	// First, delete existing users to avoid conflicts
+	if err := db.Exec("DELETE FROM users WHERE email IN ('alice@example.com', 'bob@example.com')").Error; err != nil {
+		log.Printf("Error deleting existing users: %v", err)
+	}
+
 	for _, user := range users {
 		if err := db.Create(&user).Error; err != nil {
 			log.Printf("Error creating user %s: %v", user.Name, err)
+			continue
 		}
+		log.Printf("Created user: %s", user.Name)
 	}
 
 	// Create demo orders
@@ -77,7 +84,9 @@ func main() {
 	for _, order := range orders {
 		if err := db.Create(&order).Error; err != nil {
 			log.Printf("Error creating order: %v", err)
+			continue
 		}
+		log.Printf("Created order for user: %s", order.UserID)
 	}
 
 	// Create demo trades
@@ -107,7 +116,9 @@ func main() {
 	for _, trade := range trades {
 		if err := db.Create(&trade).Error; err != nil {
 			log.Printf("Error creating trade: %v", err)
+			continue
 		}
+		log.Printf("Created trade: %s", trade.ID)
 	}
 
 	// Create demo fee transactions
@@ -133,7 +144,9 @@ func main() {
 	for _, feeTx := range feeTransactions {
 		if err := db.Create(&feeTx).Error; err != nil {
 			log.Printf("Error creating fee transaction: %v", err)
+			continue
 		}
+		log.Printf("Created fee transaction: %s", feeTx.ID)
 	}
 
 	log.Println("Database seeded successfully!")

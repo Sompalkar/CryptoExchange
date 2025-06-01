@@ -17,7 +17,10 @@ import (
 
 func main() {
 	// Initialize database
-	db, err := gorm.Open(postgres.Open("postgresql://postgres:S@mm7578@db.cikslxgwbjvvfictuzlu.supabase.co:5432/postgres"))
+	// go run main.go
+	//
+//postgresql://postgres:S@mm7578@db.cikslxgwbjvvfictuzlu.supabase.co:5432/postgres
+	db, err := gorm.Open(postgres.Open("postgresql://postgres:postgres@localhost:5432/postgres"))
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}

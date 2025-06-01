@@ -1,200 +1,170 @@
 import type { User } from "@/types/auth"
-import type { SetterOrUpdater } from "recoil"
 import Cookies from "js-cookie"
 
-// Base URL for API requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
 
-// Token storage key in cookies
-const TOKEN_KEY = "nexusx_auth_token"
-const TOKEN_EXPIRY_DAYS = 7
-
-// Get the stored token from cookies
-export function getToken(): string | null {
-  if (typeof window === "undefined") return null
-  return Cookies.get(TOKEN_KEY) || null
+interface LoginCredentials {
+  email: string
+  password: string
 }
 
-// Store the token in cookies
-export function setToken(token: string): void {
-  if (typeof window === "undefined") return
-  Cookies.set(TOKEN_KEY, token, {
-    expires: TOKEN_EXPIRY_DAYS,
-    secure: process.env.NODE_ENV === "production",
-    sameSite: "strict",
-  })
-}
-
-// Remove the token from cookies
-export function removeToken(): void {
-  if (typeof window === "undefined") return
-  Cookies.remove(TOKEN_KEY)
-}
-
-// Fetch with authentication
-export async function fetchWithAuth(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = getToken()
-  const headers = {
-    ...(options.headers || {}),
-    "Content-Type": "application/json",
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-  }
-
-  return fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
-    ...options,
-    headers,
-    credentials: "include", // Include cookies in requests
-  })
-}
-
-// Register with credentials
-export async function registerWithCredentials({
-  email,
-  username,
-  password,
-}: {
+interface RegisterCredentials {
   email: string
   username: string
   password: string
-}): Promise<{ user: User; token: string }> {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/users/register`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, username, password }),
-      credentials: "include",
-    })
+}
 
-    if (!response.ok) {
-      const errorData = await response.json()
-      throw new Error(errorData.message || "Registration failed")
-    }
+interface AuthResponse {
+  token: string
+  user: User
+}
 
-    const data = await response.json()
-    setToken(data.token)
-    return data
-  } catch (error) {
-    console.error("Registration error:", error)
-
-    // For demo purposes only - remove in production
-    if (process.env.NODE_ENV === "development") {
-      const demoUser = {
-        id: "demo-user-id",
-        email,
-        username: username || email.split("@")[0],
-        name: username || email.split("@")[0],
-        balance: {
-          BTC: 0.5,
-          USDT: 10000,
-          ETH: 5.0,
-        },
-      }
-      const demoToken = "demo-token"
-      setToken(demoToken)
-      return { user: demoUser, token: demoToken }
-    }
-
-    throw error
+// Set up default headers for API requests
+const getAuthHeaders = (): HeadersInit => {
+  const token = Cookies.get("auth_token")
+  return {
+    "Content-Type": "application/json",
+    ...(token && { Authorization: `Bearer ${token}` }),
   }
 }
 
-// Login with credentials
-export async function loginWithCredentials({
-  email,
-  password,
-}: {
-  email: string
-  password: string
-}): Promise<{ user: User; token: string }> {
+// Make authenticated API requests
+export const fetchWithAuth = async (url: string, options: RequestInit = {}): Promise<Response> => {
+  const response = await fetch(`${API_BASE_URL}${url}`, {
+    ...options,
+    headers: {
+      ...getAuthHeaders(),
+      ...options.headers,
+    },
+    credentials: "include",
+  })
+
+  // If unauthorized, clear the token and redirect to login
+  if (response.status === 401) {
+    Cookies.remove("auth_token")
+    window.location.href = "/login"
+  }
+
+  return response
+}
+
+// Login with email and password
+export const loginWithCredentials = async (credentials: LoginCredentials): Promise<AuthResponse> => {
   try {
     const response = await fetch(`${API_BASE_URL}/api/users/login`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password }),
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(credentials),
       credentials: "include",
     })
 
     if (!response.ok) {
-      const errorData = await response.json()
+      const errorData = await response.json().catch(() => ({}))
       throw new Error(errorData.message || "Login failed")
     }
 
-    const data = await response.json()
-    setToken(data.token)
+    const data: AuthResponse = await response.json()
+
+    // Store token in secure cookie
+    Cookies.set("auth_token", data.token, {
+      expires: 7, // 7 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    })
+
     return data
   } catch (error) {
     console.error("Login error:", error)
-
-    // For demo purposes only - remove in production
-    if (process.env.NODE_ENV === "development") {
-      const demoUser = {
-        id: "demo-user-id",
-        email,
-        name: email.split("@")[0],
-        balance: {
-          BTC: 0.5,
-          USDT: 10000,
-          ETH: 5.0,
-        },
-      }
-      const demoToken = "demo-token"
-      setToken(demoToken)
-      return { user: demoUser, token: demoToken }
-    }
-
     throw error
   }
 }
 
-// Get current user
-export async function getCurrentUser(): Promise<User | null> {
-  const token = getToken()
-  if (!token) return null
-
+// Register new user
+export const registerWithCredentials = async (credentials: RegisterCredentials): Promise<AuthResponse> => {
   try {
-    const response = await fetchWithAuth(`/api/users/me`)
+    const response = await fetch(`${API_BASE_URL}/api/users/register`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(credentials),
+      credentials: "include",
+    })
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}))
+      throw new Error(errorData.message || "Registration failed")
+    }
+
+    const data: AuthResponse = await response.json()
+
+    // Store token in secure cookie
+    Cookies.set("auth_token", data.token, {
+      expires: 7, // 7 days
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+    })
+
+    return data
+  } catch (error) {
+    console.error("Registration error:", error)
+    throw error
+  }
+}
+
+// Get current user profile
+export const getCurrentUser = async (): Promise<User | null> => {
+  try {
+    const token = Cookies.get("auth_token")
+    if (!token) {
+      return null
+    }
+
+    const response = await fetch(`${API_BASE_URL}/api/users/me`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        "Content-Type": "application/json",
+      },
+      credentials: "include",
+    })
 
     if (!response.ok) {
       if (response.status === 401) {
-        removeToken()
-        return null
+        Cookies.remove("auth_token")
       }
-      throw new Error("Failed to get user profile")
+      return null
     }
 
-    return await response.json()
+    const user: User = await response.json()
+    return user
   } catch (error) {
     console.error("Get current user error:", error)
-
-    // For demo purposes only - remove in production
-    if (process.env.NODE_ENV === "development") {
-      return {
-        id: "demo-user-id",
-        email: "demo@example.com",
-        name: "Demo User",
-        picture: "",
-        balance: {
-          BTC: 0.5,
-          USDT: 10000,
-          ETH: 5.0,
-          SOL: 25,
-          ADA: 1000,
-          DOT: 100,
-        },
-      }
-    }
-
     return null
   }
 }
 
-// Initialize authentication
-export async function initializeAuth(
-  setUser: SetterOrUpdater<User | null>,
-  setAuthLoading: SetterOrUpdater<boolean>,
-): Promise<void> {
-  setAuthLoading(true)
+// Logout user
+export const logout = async (): Promise<void> => {
   try {
+    // Clear the auth token cookie
+    Cookies.remove("auth_token")
+
+    // Redirect to login page
+    window.location.href = "/login"
+  } catch (error) {
+    console.error("Logout error:", error)
+  }
+}
+
+// Initialize authentication on app load
+export const initializeAuth = async (
+  setUser: (user: User | null) => void,
+  setAuthLoading: (loading: boolean) => void,
+): Promise<void> => {
+  try {
+    setAuthLoading(true)
     const user = await getCurrentUser()
     setUser(user)
   } catch (error) {
@@ -205,8 +175,7 @@ export async function initializeAuth(
   }
 }
 
-// Logout
-export async function logout(setUser: SetterOrUpdater<User | null>): Promise<void> {
-  removeToken()
-  setUser(null)
+// Check if user is authenticated
+export const isAuthenticated = (): boolean => {
+  return !!Cookies.get("auth_token")
 }
