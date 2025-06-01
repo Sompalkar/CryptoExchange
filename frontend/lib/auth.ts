@@ -1,27 +1,34 @@
 import type { User } from "@/types/auth"
+import type { SetterOrUpdater } from "recoil"
+import Cookies from "js-cookie"
 
 // Base URL for API requests
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8080"
 
-// Token storage key
+// Token storage key in cookies
 const TOKEN_KEY = "nexusx_auth_token"
+const TOKEN_EXPIRY_DAYS = 7
 
-// Get the stored token
+// Get the stored token from cookies
 export function getToken(): string | null {
   if (typeof window === "undefined") return null
-  return localStorage.getItem(TOKEN_KEY)
+  return Cookies.get(TOKEN_KEY) || null
 }
 
-// Store the token
+// Store the token in cookies
 export function setToken(token: string): void {
   if (typeof window === "undefined") return
-  localStorage.setItem(TOKEN_KEY, token)
+  Cookies.set(TOKEN_KEY, token, {
+    expires: TOKEN_EXPIRY_DAYS,
+    secure: process.env.NODE_ENV === "production",
+    sameSite: "strict",
+  })
 }
 
-// Remove the token
+// Remove the token from cookies
 export function removeToken(): void {
   if (typeof window === "undefined") return
-  localStorage.removeItem(TOKEN_KEY)
+  Cookies.remove(TOKEN_KEY)
 }
 
 // Fetch with authentication
@@ -36,6 +43,7 @@ export async function fetchWithAuth(url: string, options: RequestInit = {}): Pro
   return fetch(url.startsWith("http") ? url : `${API_BASE_URL}${url}`, {
     ...options,
     headers,
+    credentials: "include", // Include cookies in requests
   })
 }
 
@@ -54,6 +62,7 @@ export async function registerWithCredentials({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, username, password }),
+      credentials: "include",
     })
 
     if (!response.ok) {
@@ -102,6 +111,7 @@ export async function loginWithCredentials({
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ email, password }),
+      credentials: "include",
     })
 
     if (!response.ok) {
@@ -178,7 +188,25 @@ export async function getCurrentUser(): Promise<User | null> {
   }
 }
 
+// Initialize authentication
+export async function initializeAuth(
+  setUser: SetterOrUpdater<User | null>,
+  setAuthLoading: SetterOrUpdater<boolean>,
+): Promise<void> {
+  setAuthLoading(true)
+  try {
+    const user = await getCurrentUser()
+    setUser(user)
+  } catch (error) {
+    console.error("Auth initialization error:", error)
+    setUser(null)
+  } finally {
+    setAuthLoading(false)
+  }
+}
+
 // Logout
-export async function logout(): Promise<void> {
+export async function logout(setUser: SetterOrUpdater<User | null>): Promise<void> {
   removeToken()
+  setUser(null)
 }

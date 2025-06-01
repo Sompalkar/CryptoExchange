@@ -84,7 +84,7 @@ export default function Header() {
 
   const handleLogout = async () => {
     try {
-      await logout()
+      // await logout()
       setUser(null)
       window.location.href = "/"
     } catch (error) {

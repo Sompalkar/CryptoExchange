@@ -7,7 +7,8 @@ export interface User {
   balance?: Record<string, number>
 }
 
-export interface AuthResponse {
-  user: User
-  token: string
+export interface AuthState {
+  user: User | null
+  loading: boolean
+  error: string | null
 }

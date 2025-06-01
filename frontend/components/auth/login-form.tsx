@@ -31,7 +31,7 @@ export default function LoginForm() {
     try {
       const response = await loginWithCredentials({ email, password })
       setUser(response.user)
-      router.push("/dashboard")
+      router.push("/trade/BTC-USDT")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Login failed. Please try again.")
     } finally {

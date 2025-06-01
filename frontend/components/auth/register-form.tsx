@@ -18,7 +18,7 @@ import Link from "next/link"
 export default function RegisterForm() {
   const router = useRouter()
   const [, setUser] = useRecoilState(userState)
-  const [name, setName] = useState("")
+  const [username, setUsername] = useState("")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [confirmPassword, setConfirmPassword] = useState("")
@@ -38,21 +38,18 @@ export default function RegisterForm() {
 
     try {
       const response = await registerWithCredentials({
-        name,
         email,
+        username,
         password,
-        confirmPassword,
       })
       setUser(response.user)
-      router.push("/dashboard")
+      router.push("/trade/BTC-USDT")
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed. Please try again.")
     } finally {
       setLoading(false)
     }
   }
-
-  // Remove the handleAuth0Login function or replace it with a proper implementation if needed
 
   return (
     <Card className="w-full max-w-md mx-auto">
@@ -70,13 +67,14 @@ export default function RegisterForm() {
 
         <form onSubmit={handleRegister} className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="name">Name</Label>
+            <Label htmlFor="username">Username</Label>
             <Input
-              id="name"
+              id="username"
               type="text"
-              placeholder="John Doe"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
+              placeholder="johndoe"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+              required
             />
           </div>
           <div className="space-y-2">
