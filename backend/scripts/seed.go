@@ -12,7 +12,7 @@ import (
 
 func main() {
 	// Connect to database
-	db, err := gorm.Open(postgres.Open("postgresql://postgres:postgres@localhost:5432/postgres"))
+	db, err := gorm.Open(postgres.Open("host=localhost user=postgres password=postgres dbname=postgres port=5432 sslmode=disable"))
 	if err != nil {
 		log.Fatal("Failed to connect to database:", err)
 	}

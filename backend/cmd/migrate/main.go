@@ -16,7 +16,8 @@ func main() {
 
 	// Run migrations
 	log.Println("Running database migrations...")
-	err = db.AutoMigrate(&models.User{}, &models.Order{}, &models.Trade{})
+	// err = db.AutoMigrate(&models.User{}, &models.Order{}, &models.Trade{})
+	err=db.AutoMigrate(&models.User{}, &models.Order{}, &models.Trade{}, &models.FeeTransaction{})
 	if err != nil {
 		log.Fatal("Failed to run migrations:", err)
 	}
