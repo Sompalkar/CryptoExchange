@@ -80,7 +80,7 @@ func SetAuthCookie(w http.ResponseWriter, token string) {
 		HttpOnly: true,
 		Secure:   true, // Set to true in production
 		SameSite: http.SameSiteStrictMode,
-		MaxAge:   86400, // 24 hours
+		MaxAge:   86400, // 24 hours`1111  `
 	}
 	http.SetCookie(w, &cookie)
 }

@@ -9,6 +9,9 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+
+
+
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
@@ -16,6 +19,9 @@ var upgrader = websocket.Upgrader{
 		return true // Allow all origins in development
 	},
 }
+
+
+
 
 // WebSocketHandler handles WebSocket connections for real-time market data
 type WebSocketHandler struct {
@@ -26,6 +32,10 @@ type WebSocketHandler struct {
 
 
 
+
+
+
+
 // NewWebSocketHandler creates a new WebSocket handler
 func NewWebSocketHandler(marketData *services.MarketDataService) *WebSocketHandler {
 	return &WebSocketHandler{
@@ -33,6 +43,10 @@ func NewWebSocketHandler(marketData *services.MarketDataService) *WebSocketHandl
 		clients:    make(map[string][]*websocket.Conn),
 	}
 }
+
+
+
+
 
 
 // HandleWebSocket handles incoming WebSocket connections
@@ -59,6 +73,9 @@ func (h *WebSocketHandler) HandleWebSocket(w http.ResponseWriter, r *http.Reques
 	// Start goroutine to handle client connection
 	go h.handleClient(pair, conn)
 }
+
+
+
 
 
 
@@ -99,6 +116,9 @@ func (h *WebSocketHandler) handleClient(pair string, conn *websocket.Conn) {
 	}
 }
 
+
+
+
 // removeClient removes a client from the pair's client list
 func (h *WebSocketHandler) removeClient(pair string, conn *websocket.Conn) {
 	h.mu.Lock()
@@ -118,6 +138,9 @@ func (h *WebSocketHandler) removeClient(pair string, conn *websocket.Conn) {
 		delete(h.clients, pair)
 	}
 }
+
+
+
 
 // BroadcastMessage broadcasts a message to all clients for a pair
 func (h *WebSocketHandler) BroadcastMessage(pair string, message interface{}) {

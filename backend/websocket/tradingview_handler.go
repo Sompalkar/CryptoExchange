@@ -146,3 +146,4 @@ func (c *Client) sendMessage(msg TradingViewMessage) {
 		log.Printf("Error sending message: %v", err)
 	}
 }
+

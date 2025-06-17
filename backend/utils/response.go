@@ -13,8 +13,18 @@ type Response struct {
 	Error   string      `json:"error,omitempty"`
 }
 
+// setCORSHeaders sets the CORS headers for the response
+func setCORSHeaders(w http.ResponseWriter) {
+	w.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+	w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS, PATCH")
+	w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With, Accept, Origin, Access-Control-Request-Method, Access-Control-Request-Headers")
+	w.Header().Set("Access-Control-Allow-Credentials", "true")
+	w.Header().Set("Access-Control-Max-Age", "86400") // 24 hours
+}
+
 // JSONResponse sends a JSON response with the given status code and data
 func JSONResponse(w http.ResponseWriter, statusCode int, data interface{}) {
+	setCORSHeaders(w)
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(statusCode)
 	json.NewEncoder(w).Encode(data)

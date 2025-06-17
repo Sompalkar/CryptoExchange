@@ -41,21 +41,30 @@ type Order struct {
 	DeletedAt gorm.DeletedAt `gorm:"index" json:"-"`
 }
 
+
+
+
 // BeforeCreate is a GORM hook that generates a new UUID before creating an order
 func (o *Order) BeforeCreate(tx *gorm.DB) error {
 	o.ID = uuid.New()
 	return nil
 }
 
+
+
 // CalculateTotal returns the total value of the order (amount * price)
 func (o *Order) CalculateTotal() float64 {
 	return o.Amount * o.Price
 }
 
+
+
 // IsValid checks if the order is valid
 func (o *Order) IsValid() bool {
 	return o.Price > 0 && o.Amount > 0 && o.Pair != ""
 }
+
+
 
 // CanMatchWith checks if this order can match with another order
 func (o *Order) CanMatchWith(other *Order) bool {
@@ -68,6 +77,8 @@ func (o *Order) CanMatchWith(other *Order) bool {
 	}
 	return o.Price <= other.Price // Sell order price must be <= buy order price
 }
+
+
 
 // MatchWith matches this order with another order
 func (o *Order) MatchWith(other *Order) *Trade {
